@@ -53,12 +53,12 @@ def calculate_signals(data):
 """
         
         # Add code for each category
-        for category, config in categories.items():
+        for category_key, config in categories.items():
             category_weight = config['weight']
             rules = config['rules']
             
             code += f"""
-    # {category.title()} signals
+    # {category_key.title()} signals
     category_signal = pd.Series(0, index=data.index)
     category_weight = {category_weight}
     total_weight += category_weight

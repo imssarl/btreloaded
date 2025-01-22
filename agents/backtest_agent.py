@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from utils.assistant import Assistant
 from .position_sizing import PositionSizer
+from utils.rule_implementations import RULE_IMPLEMENTATIONS
 
 class BacktestAgent(Assistant):
     def __init__(self):
