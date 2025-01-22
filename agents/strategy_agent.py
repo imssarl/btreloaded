@@ -119,5 +119,68 @@ def calculate_position_sizes(data, signals):
     
     return position_sizes
 """
+        elif method == "fixed_percentage":
+            return f"""
+def calculate_position_sizes(data, signals):
+    # Fixed percentage position sizing
+    position_size = {params['position_size']}
+    
+    # Apply the fixed size to signals
+    position_sizes = signals * position_size
+    
+    return position_sizes
+"""
+        elif method == "equal_risk":
+            return f"""
+def calculate_position_sizes(data, signals):
+    # Calculate ATR
+    tr = pd.DataFrame()
+    tr['h-l'] = data['High'] - data['Low']
+    tr['h-pc'] = abs(data['High'] - data['Close'].shift(1))
+    tr['l-pc'] = abs(data['Low'] - data['Close'].shift(1))
+    atr = tr.max(axis=1).rolling({params['atr_periods']}).mean()
+    
+    # Calculate position sizes based on risk per trade
+    risk_amount = {params['risk_per_trade']}
+    position_sizes = signals * (risk_amount / (atr / data['Close']))
+    
+    return position_sizes
+"""
+        elif method == "inverse_volatility":
+            return f"""
+def calculate_position_sizes(data, signals):
+    # Calculate volatility
+    returns = data['Close'].pct_change()
+    vol = returns.rolling({params['lookback']}).std() * np.sqrt(252)
+    
+    # Calculate inverse volatility position sizes
+    position_sizes = signals * (1 / vol)
+    
+    # Normalize and apply maximum size
+    max_size = {params['max_size']}
+    position_sizes = position_sizes / vol.mean()  # Normalize to average volatility
+    position_sizes = position_sizes.clip(-max_size, max_size)
+    
+    return position_sizes
+"""
+        elif method == "kelly_criterion":
+            return f"""
+def calculate_position_sizes(data, signals):
+    # Kelly Criterion parameters
+    win_rate = {params['win_rate']}
+    profit_ratio = {params['profit_ratio']}
+    max_size = {params['max_size']}
+    
+    # Kelly fraction = (bp - q)/b where:
+    # b = profit ratio
+    # p = win rate
+    # q = loss rate (1-p)
+    kelly_fraction = (profit_ratio * win_rate - (1 - win_rate)) / profit_ratio
+    
+    # Use half-kelly for safety and apply maximum size
+    position_sizes = signals * min(kelly_fraction * 0.5, max_size)
+    
+    return position_sizes
+"""
         else:
             raise ValueError(f"Unknown position sizing method: {method}") 
