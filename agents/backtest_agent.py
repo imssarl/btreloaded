@@ -61,12 +61,13 @@ class BacktestAgent(Assistant):
         namespace = {
             'pd': pd,
             'np': np,
-            'data': data
+            'data': data,
+            'RULE_IMPLEMENTATIONS': RULE_IMPLEMENTATIONS
         }
         
         # Execute the strategy code in the namespace
         exec(signal_code, globals(), namespace)
-        signals = namespace['generate_signals'](data)
+        signals = namespace['calculate_signals'](data)
         
         print(f"Generated signals shape: {signals.shape}")
         print(f"Signals head:\n{signals.head()}")
