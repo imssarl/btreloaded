@@ -40,87 +40,95 @@ def render_strategy_rules():
         .stMarkdown {margin-bottom: 0.5rem;}
         .stButton button {width: 100%;}
         .stSelectbox {margin-bottom: 1rem;}
+        .subcategory {margin-left: 1rem;}
         </style>
     """, unsafe_allow_html=True)
     
-    # Iterate through strategy categories
+    # Iterate through main categories (Entry/Exit)
     for category, cat_info in STRATEGY_CATEGORIES.items():
-        with st.sidebar.expander(f"📊 {cat_info['name']}", expanded=True):
+        with st.sidebar.expander(f"{'🎯' if category == 'entry' else '🚪'} {cat_info['name']}", expanded=True):
             st.markdown(f"_{cat_info['description']}_")
             
-            # Category weight
-            weight = st.slider(
-                "Category Weight",
-                0.0, 1.0, 1.0,
-                key=f"weight_{category}"
-            )
-            st.session_state.strategy_manager.set_category_weight(category, weight)
-            
-            # Show active rules first
-            if category in st.session_state.strategy_manager.active_rules:
-                st.markdown("**Active Rules:**")
-                for i, rule in enumerate(st.session_state.strategy_manager.active_rules[category]):
-                    rule_info = cat_info['rules'][rule.rule_type]
-                    with st.container():
-                        st.markdown(f"🔹 {rule_info['name']}")
-                        params = [f"{param_name}: {value}" for param_name, value in rule.parameters.items() if param_name != 'weight']
-                        st.markdown(f"_{', '.join(params)}_")
-                        if st.button("🗑️ Remove", key=f"remove_{category}_{i}", help=f"Remove this {rule_info['name']} rule"):
-                            st.session_state.strategy_manager.remove_rule(category, i)
+            # Iterate through subcategories
+            for subcat, subcat_info in cat_info['subcategories'].items():
+                with st.expander(f"📌 {subcat_info['name']}", expanded=False):
+                    st.markdown(f"_{subcat_info['description']}_")
+                    
+                    # Category weight
+                    weight = st.slider(
+                        "Category Weight",
+                        0.0, 1.0, 1.0,
+                        key=f"weight_{category}_{subcat}"
+                    )
+                    st.session_state.strategy_manager.set_category_weight(f"{category}_{subcat}", weight)
+                    
+                    # Show active rules first
+                    if f"{category}_{subcat}" in st.session_state.strategy_manager.active_rules:
+                        st.markdown("**Active Rules:**")
+                        for i, rule in enumerate(st.session_state.strategy_manager.active_rules[f"{category}_{subcat}"]):
+                            rule_info = subcat_info['rules'][rule.rule_type]
+                            with st.container():
+                                st.markdown(f"🔹 {rule_info['name']}")
+                                params = [f"{param_name}: {value}" for param_name, value in rule.parameters.items() if param_name != 'weight']
+                                st.markdown(f"_{', '.join(params)}_")
+                                if st.button("🗑️ Remove", key=f"remove_{category}_{subcat}_{i}", help=f"Remove this {rule_info['name']} rule"):
+                                    st.session_state.strategy_manager.remove_rule(f"{category}_{subcat}", i)
+                                    st.rerun()
+                        st.markdown("---")
+                    
+                    # Add rule section
+                    st.markdown("**Add New Rule:**")
+                    if st.session_state.configuring_rule != f"{category}_{subcat}":
+                        if st.button("➕ Add Rule", key=f"add_{category}_{subcat}"):
+                            st.session_state.configuring_rule = f"{category}_{subcat}"
+                            st.session_state.temp_rule_params = {}
                             st.rerun()
-                st.markdown("---")
-            
-            # Add rule section
-            st.markdown("**Add New Rule:**")
-            if st.session_state.configuring_rule != category:
-                if st.button("➕ Add Rule", key=f"add_{category}"):
-                    st.session_state.configuring_rule = category
-                    st.session_state.temp_rule_params = {}
-                    st.rerun()
-            else:
-                # Rule type selection
-                rule_type = st.selectbox(
-                    "Rule Type",
-                    options=list(cat_info['rules'].keys()),
-                    format_func=lambda x: cat_info['rules'][x]['name'],
-                    key=f"rule_type_{category}"
-                )
-                
-                # Rule parameters
-                rule_info = cat_info['rules'][rule_type]
-                rule_params = {}
-                
-                for param_name, param_info in rule_info['parameters'].items():
-                    if param_info['type'] == 'int':
-                        value = st.slider(
-                            param_name.replace('_', ' ').title(),
-                            param_info['min'],
-                            param_info['max'],
-                            param_info['default'],
-                            key=f"param_{category}_{rule_type}_{param_name}"
+                    else:
+                        # Rule type selection
+                        rule_type = st.selectbox(
+                            "Rule Type",
+                            options=list(subcat_info['rules'].keys()),
+                            format_func=lambda x: subcat_info['rules'][x]['name'],
+                            key=f"rule_type_{category}_{subcat}"
                         )
-                    else:  # float
-                        value = st.slider(
-                            param_name.replace('_', ' ').title(),
-                            float(param_info['min']),
-                            float(param_info['max']),
-                            float(param_info['default']),
-                            key=f"param_{category}_{rule_type}_{param_name}"
-                        )
-                    rule_params[param_name] = value
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("✓ Add", key=f"confirm_{category}_{rule_type}", help="Add this rule to the strategy"):
-                        st.session_state.strategy_manager.add_rule(category, rule_type, rule_params)
-                        st.session_state.configuring_rule = None
-                        st.session_state.temp_rule_params = {}
-                        st.rerun()
-                with col2:
-                    if st.button("✗ Cancel", key=f"cancel_{category}_{rule_type}", help="Cancel adding this rule"):
-                        st.session_state.configuring_rule = None
-                        st.session_state.temp_rule_params = {}
-                        st.rerun()
+                        
+                        # Rule parameters
+                        rule_info = subcat_info['rules'][rule_type]
+                        rule_params = {}
+                        
+                        st.markdown(f"_{rule_info['description']}_")
+                        
+                        for param_name, param_info in rule_info['parameters'].items():
+                            if param_info['type'] == 'int':
+                                value = st.slider(
+                                    f"{param_name.replace('_', ' ').title()} ({param_info['description']})",
+                                    param_info['min'],
+                                    param_info['max'],
+                                    param_info['default'],
+                                    key=f"param_{category}_{subcat}_{rule_type}_{param_name}"
+                                )
+                            else:  # float
+                                value = st.slider(
+                                    f"{param_name.replace('_', ' ').title()} ({param_info['description']})",
+                                    float(param_info['min']),
+                                    float(param_info['max']),
+                                    float(param_info['default']),
+                                    key=f"param_{category}_{subcat}_{rule_type}_{param_name}"
+                                )
+                            rule_params[param_name] = value
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✓ Add", key=f"confirm_{category}_{subcat}_{rule_type}", help="Add this rule to the strategy"):
+                                st.session_state.strategy_manager.add_rule(f"{category}_{subcat}", rule_type, rule_params)
+                                st.session_state.configuring_rule = None
+                                st.session_state.temp_rule_params = {}
+                                st.rerun()
+                        with col2:
+                            if st.button("✗ Cancel", key=f"cancel_{category}_{subcat}_{rule_type}", help="Cancel adding this rule"):
+                                st.session_state.configuring_rule = None
+                                st.session_state.temp_rule_params = {}
+                                st.rerun()
 
 def main():
     st.title("Trading Strategy Assistant")
