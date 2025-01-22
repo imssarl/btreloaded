@@ -162,7 +162,7 @@ def main():
         with st.expander("💰 Position Sizing", expanded=True):
             position_methods = {
                 "volatility_targeting": "Volatility Targeting",
-                "fixed_percent": "Fixed Percentage",
+                "fixed_percentage": "Fixed Percentage",
                 "equal_risk": "Equal Risk per Trade",
                 "inverse_volatility": "Inverse Volatility",
                 "kelly_criterion": "Kelly Criterion"
@@ -183,7 +183,7 @@ def main():
                     "lookback": vol_lookback,
                     "max_size": max_position
                 }
-            elif position_method == "fixed_percent":
+            elif position_method == "fixed_percentage":
                 position_size = st.slider("Position Size (%)", 1, 100, 10) / 100
                 sizing_params = {"position_size": position_size}
             elif position_method == "equal_risk":
@@ -234,6 +234,14 @@ def main():
                     return
                 
                 strategy_code = strategy_agent.generate_complete_strategy(strategy_spec)
+                
+                # Debug information
+                st.write("Strategy Configuration:")
+                st.json(strategy_spec)
+                if strategy_code:
+                    st.write("Generated Strategy Code:")
+                    st.code(strategy_code.get('signal_code', 'No signal code generated'))
+                
                 backtest_results = backtest_agent.run_backtest(
                     {symbol: data},
                     {**strategy_spec, **strategy_code}
