@@ -30,12 +30,10 @@ class StrategyAgent(Assistant):
         categories = strategy_spec['categories']
         
         # Generate the strategy calculation code
-        strategy_code = {
-            'calculate_signals': self._generate_signal_code(categories),
-            'calculate_position_sizes': self._generate_position_sizing_code(strategy_spec['position_sizing'])
+        return {
+            'signal_code': self._generate_signal_code(categories),
+            'sizing_code': self._generate_position_sizing_code(strategy_spec['position_sizing'])
         }
-        
-        return strategy_code
     
     def _generate_signal_code(self, categories: Dict) -> str:
         """Generate code for calculating combined signals from all rules."""
