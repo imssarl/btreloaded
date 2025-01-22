@@ -34,33 +34,52 @@ def initialize_session_state():
 def render_strategy_rules():
     st.sidebar.header("Strategy Rules")
     
+    # Add CSS for better styling
+    st.markdown("""
+        <style>
+        .stMarkdown {margin-bottom: 0.5rem;}
+        .stButton button {width: 100%;}
+        .stSelectbox {margin-bottom: 1rem;}
+        </style>
+    """, unsafe_allow_html=True)
+    
     # Iterate through strategy categories
     for category, cat_info in STRATEGY_CATEGORIES.items():
-        st.sidebar.subheader(cat_info['name'])
-        st.sidebar.markdown(f"_{cat_info['description']}_")
-        
-        # Enable category
-        if st.sidebar.checkbox("Enable", key=f"enable_{category}"):
+        with st.sidebar.expander(f"📊 {cat_info['name']}", expanded=True):
+            st.markdown(f"_{cat_info['description']}_")
+            
             # Category weight
-            weight = st.sidebar.slider(
+            weight = st.slider(
                 "Category Weight",
                 0.0, 1.0, 1.0,
                 key=f"weight_{category}"
             )
             st.session_state.strategy_manager.set_category_weight(category, weight)
             
-            # Add rule button
-            if st.sidebar.button(f"Add {cat_info['name']} Rule", key=f"add_{category}"):
-                st.session_state.configuring_rule = category
-                st.session_state.temp_rule_params = {}
+            # Show active rules first
+            if category in st.session_state.strategy_manager.active_rules:
+                st.markdown("**Active Rules:**")
+                for i, rule in enumerate(st.session_state.strategy_manager.active_rules[category]):
+                    rule_info = cat_info['rules'][rule.rule_type]
+                    with st.container():
+                        st.markdown(f"🔹 {rule_info['name']}")
+                        params = [f"{param_name}: {value}" for param_name, value in rule.parameters.items() if param_name != 'weight']
+                        st.markdown(f"_{', '.join(params)}_")
+                        if st.button("🗑️ Remove", key=f"remove_{category}_{i}", help=f"Remove this {rule_info['name']} rule"):
+                            st.session_state.strategy_manager.remove_rule(category, i)
+                            st.rerun()
+                st.markdown("---")
             
-            # Show rule configuration if this category is being configured
-            if st.session_state.configuring_rule == category:
-                st.sidebar.markdown("---")
-                st.sidebar.markdown("**Configure New Rule**")
-                
+            # Add rule section
+            st.markdown("**Add New Rule:**")
+            if st.session_state.configuring_rule != category:
+                if st.button("➕ Add Rule", key=f"add_{category}"):
+                    st.session_state.configuring_rule = category
+                    st.session_state.temp_rule_params = {}
+                    st.rerun()
+            else:
                 # Rule type selection
-                rule_type = st.sidebar.selectbox(
+                rule_type = st.selectbox(
                     "Rule Type",
                     options=list(cat_info['rules'].keys()),
                     format_func=lambda x: cat_info['rules'][x]['name'],
@@ -68,12 +87,12 @@ def render_strategy_rules():
                 )
                 
                 # Rule parameters
-                rule_params = {}
                 rule_info = cat_info['rules'][rule_type]
+                rule_params = {}
                 
                 for param_name, param_info in rule_info['parameters'].items():
                     if param_info['type'] == 'int':
-                        value = st.sidebar.slider(
+                        value = st.slider(
                             param_name.replace('_', ' ').title(),
                             param_info['min'],
                             param_info['max'],
@@ -81,7 +100,7 @@ def render_strategy_rules():
                             key=f"param_{category}_{rule_type}_{param_name}"
                         )
                     else:  # float
-                        value = st.sidebar.slider(
+                        value = st.slider(
                             param_name.replace('_', ' ').title(),
                             float(param_info['min']),
                             float(param_info['max']),
@@ -90,35 +109,18 @@ def render_strategy_rules():
                         )
                     rule_params[param_name] = value
                 
-                # Confirm and Cancel buttons
-                col1, col2 = st.sidebar.columns(2)
+                col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("Confirm", key=f"confirm_{category}_{rule_type}"):
+                    if st.button("✓ Add", key=f"confirm_{category}_{rule_type}", help="Add this rule to the strategy"):
                         st.session_state.strategy_manager.add_rule(category, rule_type, rule_params)
                         st.session_state.configuring_rule = None
                         st.session_state.temp_rule_params = {}
                         st.rerun()
                 with col2:
-                    if st.button("Cancel", key=f"cancel_{category}_{rule_type}"):
+                    if st.button("✗ Cancel", key=f"cancel_{category}_{rule_type}", help="Cancel adding this rule"):
                         st.session_state.configuring_rule = None
                         st.session_state.temp_rule_params = {}
                         st.rerun()
-                
-                st.sidebar.markdown("---")
-            
-            # Show active rules
-            if category in st.session_state.strategy_manager.active_rules:
-                for i, rule in enumerate(st.session_state.strategy_manager.active_rules[category]):
-                    rule_info = cat_info['rules'][rule.rule_type]
-                    st.sidebar.markdown(f"**{rule_info['name']}**")
-                    for param_name, value in rule.parameters.items():
-                        if param_name != 'weight':
-                            st.sidebar.markdown(f"- {param_name}: {value}")
-                    if st.sidebar.button("🗑️", key=f"remove_{category}_{i}"):
-                        st.session_state.strategy_manager.remove_rule(category, i)
-                        st.rerun()
-        
-        st.sidebar.markdown("---")
 
 def main():
     st.title("Trading Strategy Assistant")
@@ -135,71 +137,81 @@ def main():
     # Sidebar for inputs
     with st.sidebar:
         # Data Settings
-        st.header("Data Settings")
-        symbol = st.text_input("Symbol", "AAPL")
-        period = st.selectbox(
-            "Data Period",
-            ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"],
-            index=3
-        )
+        with st.expander("📈 Data Settings", expanded=True):
+            symbol = st.text_input("Symbol", "AAPL")
+            period = st.selectbox(
+                "Data Period",
+                ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"],
+                index=3,
+                format_func=lambda x: {
+                    "1mo": "1 Month",
+                    "3mo": "3 Months",
+                    "6mo": "6 Months",
+                    "1y": "1 Year",
+                    "2y": "2 Years",
+                    "5y": "5 Years",
+                    "10y": "10 Years",
+                    "max": "Maximum"
+                }[x]
+            )
         
         # Strategy Rules
         render_strategy_rules()
         
         # Position Sizing
-        st.header("Position Sizing")
-        position_methods = {
-            "volatility_targeting": "Volatility Targeting",
-            "fixed_percent": "Fixed Percentage",
-            "equal_risk": "Equal Risk per Trade",
-            "inverse_volatility": "Inverse Volatility",
-            "kelly_criterion": "Kelly Criterion"
-        }
-        
-        position_method = st.selectbox(
-            "Method",
-            options=list(position_methods.keys()),
-            format_func=lambda x: position_methods[x]
-        )
-        
-        if position_method == "volatility_targeting":
-            target_vol = st.slider("Target Volatility (%)", 1, 50, 20) / 100
-            vol_lookback = st.slider("Volatility Lookback (days)", 20, 252, 60)
-            max_position = st.slider("Maximum Position Size (%)", 10, 100, 30) / 100
-            sizing_params = {
-                "target_vol": target_vol,
-                "lookback": vol_lookback,
-                "max_size": max_position
+        with st.expander("💰 Position Sizing", expanded=True):
+            position_methods = {
+                "volatility_targeting": "Volatility Targeting",
+                "fixed_percent": "Fixed Percentage",
+                "equal_risk": "Equal Risk per Trade",
+                "inverse_volatility": "Inverse Volatility",
+                "kelly_criterion": "Kelly Criterion"
             }
-        elif position_method == "fixed_percent":
-            position_size = st.slider("Position Size (%)", 1, 100, 10) / 100
-            sizing_params = {"position_size": position_size}
-        elif position_method == "equal_risk":
-            risk_per_trade = st.slider("Risk Per Trade (%)", 1, 10, 1) / 100
-            atr_periods = st.slider("ATR Periods", 5, 50, 14)
-            sizing_params = {
-                "risk_per_trade": risk_per_trade,
-                "atr_periods": atr_periods
-            }
-        elif position_method == "inverse_volatility":
-            lookback = st.slider("Volatility Lookback (days)", 20, 252, 60)
-            max_position = st.slider("Maximum Position Size (%)", 10, 100, 30) / 100
-            sizing_params = {
-                "lookback": lookback,
-                "max_size": max_position
-            }
-        else:  # kelly_criterion
-            win_rate = st.slider("Expected Win Rate (%)", 1, 99, 50) / 100
-            profit_ratio = st.slider("Profit Ratio (Avg Win / Avg Loss)", 0.1, 5.0, 2.0, 0.1)
-            max_position = st.slider("Maximum Position Size (%)", 10, 100, 30) / 100
-            sizing_params = {
-                "win_rate": win_rate,
-                "profit_ratio": profit_ratio,
-                "max_size": max_position
-            }
+            
+            position_method = st.selectbox(
+                "Method",
+                options=list(position_methods.keys()),
+                format_func=lambda x: position_methods[x]
+            )
+            
+            if position_method == "volatility_targeting":
+                target_vol = st.slider("Target Volatility (%)", 1, 50, 20) / 100
+                vol_lookback = st.slider("Volatility Lookback (days)", 20, 252, 60)
+                max_position = st.slider("Maximum Position Size (%)", 10, 100, 30) / 100
+                sizing_params = {
+                    "target_vol": target_vol,
+                    "lookback": vol_lookback,
+                    "max_size": max_position
+                }
+            elif position_method == "fixed_percent":
+                position_size = st.slider("Position Size (%)", 1, 100, 10) / 100
+                sizing_params = {"position_size": position_size}
+            elif position_method == "equal_risk":
+                risk_per_trade = st.slider("Risk Per Trade (%)", 1, 10, 1) / 100
+                atr_periods = st.slider("ATR Periods", 5, 50, 14)
+                sizing_params = {
+                    "risk_per_trade": risk_per_trade,
+                    "atr_periods": atr_periods
+                }
+            elif position_method == "inverse_volatility":
+                lookback = st.slider("Volatility Lookback (days)", 20, 252, 60)
+                max_position = st.slider("Maximum Position Size (%)", 10, 100, 30) / 100
+                sizing_params = {
+                    "lookback": lookback,
+                    "max_size": max_position
+                }
+            else:  # kelly_criterion
+                win_rate = st.slider("Expected Win Rate (%)", 1, 99, 50) / 100
+                profit_ratio = st.slider("Profit Ratio (Avg Win / Avg Loss)", 0.1, 5.0, 2.0, 0.1)
+                max_position = st.slider("Maximum Position Size (%)", 10, 100, 30) / 100
+                sizing_params = {
+                    "win_rate": win_rate,
+                    "profit_ratio": profit_ratio,
+                    "max_size": max_position
+                }
     
     # Main area - Run Backtest button
-    if st.button("Run Backtest"):
+    if st.button("🚀 Run Backtest", help="Run the backtest with the current strategy configuration"):
         with st.spinner("Running backtest..."):
             try:
                 # Get strategy configuration
