@@ -63,7 +63,7 @@ STRATEGY_CATEGORIES = {
                 "name": "Moving Average",
                 "description": "Rules based on moving averages",
                 "rules": {
-                    "crossover": {
+                    "sma_crossover": {
                         "name": "MA Crossover",
                         "description": "Enter on moving average crossovers",
                         "parameters": {
